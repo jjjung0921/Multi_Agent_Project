@@ -98,9 +98,12 @@ chk_checkpoint() { # checkpoint 이후에 부기(ai(…))·병합 커밋만 있�
   if [ -z "$extra" ]; then ok "Last Checkpoint = $cp (이후 부기·병합 커밋만)"; else fail "checkpoint($cp) 이후 작업 커밋이 있다 → scripts/ai-end.sh --set-checkpoint"; fi
   return 0
 }
-chk_close_scope() { # 커밋 안 된 변경은 close commit 범위 안에만
-  local other; other=$(git status --porcelain | cut -c4- | sed 's/.* -> //' | grep -vE "^($dir/|docs/phases/|docs/decisions/|\.claude/agent-memory/)" || true)
+chk_close_scope() { # 커밋 안 된 변경은 close commit 범위 안에만 (추적 파일은 FAIL, 미추적 파일은 warn)
+  local other untracked
+  other=$(git status --porcelain | grep -v '^??' | cut -c4- | sed 's/.* -> //' | grep -vE "^($dir/|docs/phases/|docs/decisions/|\.claude/agent-memory/)" || true)
+  untracked=$(git status --porcelain | grep '^??' | cut -c4- | grep -vE "^($dir/|docs/phases/|docs/decisions/|\.claude/agent-memory/)" || true)
   if [ -z "$other" ]; then ok "코드 변경이 모두 커밋되어 있다"; else fail "작업 커밋이 안 된 변경이 있다 (close commit 전에 Rule 9 대로 커밋):"; printf '%s\n' "$other" | sed 's/^/           /'; fi
+  [ -n "$untracked" ] && { warn "미추적 파일이 있다 — 커밋 대상이면 add, 아니면 .gitignore:"; printf '%s\n' "$untracked" | sed 's/^/           /'; }
   return 0
 }
 chk_handoff() {
