@@ -233,7 +233,8 @@ refs=$(git diff --name-only --diff-filter=A "$base...HEAD" -- docs/decisions/ 2>
 case "$kind" in task) ptype=feat;; spec) ptype=spec;; plan) ptype=plan;; phase) ptype=phase-close;; *) ptype=chore;; esac
 scope=$(touches_of "$touches" | head -n1 | sed 's/^\.\///; s/^\///'); scope=${scope%%/*}; scope=${scope%%#*}; scope=${scope%%.*}; [ -z "$scope" ] || [ "$scope" = "." ] && scope=repo
 [ "$kind" = "phase" ] && scope=ai
-title="$ptype($scope): $(printf '%s' "${goal:-$id}" | cut -c1-60) [$task]"
+summary=${goal:-$id}; summary=${summary:0:60}
+title="$ptype($scope): $summary [$task]"
 
 body=$(mktemp -t ai-pr.XXXXXX)
 {

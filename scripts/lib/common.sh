@@ -1,6 +1,8 @@
 # common.sh — scripts/ai-*.sh 가 source 하는 공통 함수. bash 3.2+ (macOS 기본 bash), git 2.23+ 만 가정한다.
 # 직접 실행하지 않는다.
 
+# 한글 등 멀티바이트 문자열 처리를 위해 UTF-8 로케일이 없으면(CI 등) 지정한다 — macOS 터미널은 보통 이미 설정되어 있다
+[ -n "${LANG:-}${LC_ALL:-}" ] || export LANG=C.UTF-8
 AI_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "error: git 저장소 안에서 실행한다" >&2; exit 1; }
 cd "$AI_ROOT"
 
