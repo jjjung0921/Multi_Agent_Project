@@ -27,7 +27,11 @@ stream_exists() { ws_ref_exists "$1" || git cat-file -e "$(main_ref):$WORK/$1/CU
 bookkeep_commit() { # bookkeep_commit <subject> <task> <stream>
   git commit -q -m "$1" --trailer "Agent: ${AI_AGENT:-ai-stream}" --trailer "Task: $2" --trailer "Stream: $3"
 }
-push_branch() { if have_origin; then git push -q -u origin "$1" && say "pushed $1"; else say "(origin 없음 — push 생략)"; fi; }
+push_branch() {
+  if ! have_origin; then say "(origin 없음 — push 생략)"; return 0; fi
+  if git push -q -u origin "$1" 2>/dev/null; then say "pushed $1"
+  else warn "push 실패 (오프라인·인증?) — 나중에 'git push -u origin $1'. push 전까지는 팀에 보이지 않는다 (Rule 15)"; fi
+}
 
 # ---------------------------------------------------------------- open
 cmd_open() {
