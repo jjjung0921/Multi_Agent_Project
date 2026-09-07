@@ -1,0 +1,7 @@
+# 줄 끝 정규화 (Windows 협업자 대비)
+* text=auto eol=lf
+*.sh text eol=lf
+.githooks/* text eol=lf
+
+# 역할 메모리는 항목이 독립적이라 브랜치 병합 시 양쪽을 합친다 (스트림 상태 파일은 디렉터리가 분리되어 union이 필요 없다)
+.claude/agent-memory/**/*.md merge=union

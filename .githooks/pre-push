@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# pre-push — 빠른 점검 (브랜치·남의 스트림 디렉터리·비밀값). ws/* 브랜치에서만. 수 초 안에 끝난다.
+branch=$(git symbolic-ref -q --short HEAD 2>/dev/null || true)
+case "$branch" in ws/*) ;; *) exit 0;; esac
+root=$(git rev-parse --show-toplevel)
+if [ -x "$root/scripts/ai-end.sh" ]; then
+  bash "$root/scripts/ai-end.sh" --quick || { echo "pre-push: ai-end.sh --quick 실패 — 고친 뒤 push (우회: --no-verify, CI 가 다시 검사한다)" >&2; exit 1; }
+fi
+exit 0

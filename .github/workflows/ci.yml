@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ai-check:
+    # 스트림 규칙 검사 — hotfix/* 브랜치는 Commands 만 검사한다
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'hotfix/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: fetch main
+        run: git fetch origin main:refs/remotes/origin/main
+      - name: ai-end.sh --ci
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+        run: bash scripts/ai-end.sh --ci
+
+  commands:
+    # AGENTS.md 의 Commands 4개와 같게 채운다 (템플릿 초기화 시). 경고는 실패로.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install
+        run: echo "<install command>"
+      - name: test
+        run: echo "<test command>"
+      - name: typecheck
+        run: echo "<typecheck command>"
+      - name: lint
+        run: echo "<lint command>"

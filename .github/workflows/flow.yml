@@ -1,0 +1,50 @@
+name: git-flow
+
+# flow 역할(.claude/agents/git-flow.md) — 기본 꺼짐. 조직의 Claude Code Action 설정과 ANTHROPIC_API_KEY 가 준비되면
+# 아래 `if: false` 를 지우고 schedule 주석을 푼다. Action 입력 이름은 사용 시점의 anthropics/claude-code-action 문서로 확인한다.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 0 * * 1-5"   # 매일 09:00 KST 유지보수
+
+jobs:
+  review:
+    if: ${{ false && github.event_name == 'pull_request' && !startsWith(github.head_ref, 'hotfix/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: context
+        run: bash scripts/ai-stream.sh flow review > /tmp/flow-context.md
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            .claude/agents/git-flow.md 의 review 모드로 이 PR을 검토하고 코멘트 하나로 결과를 남겨라. 컨텍스트: /tmp/flow-context.md
+
+  maintain:
+    if: ${{ false && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: context
+        run: bash scripts/ai-stream.sh flow maintain > /tmp/flow-context.md
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            .claude/agents/git-flow.md 의 maintain 모드를 수행하라. 쓰기는 코멘트·이슈·ws/flow-* PR 로만. 컨텍스트: /tmp/flow-context.md

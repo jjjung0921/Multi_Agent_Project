@@ -1,0 +1,270 @@
+# Team AI-Agent Project Template
+
+여러 개발자가 각자 AI Agent(Claude Code, Codex, Gemini CLI, ChatGPT 등)와 함께 **동시에** 작업해도 문맥이 끊기지 않고 서로의 상태 파일이 충돌하지 않도록 설계된 프로젝트 템플릿이다.
+특정 Agent의 대화 기억에 의존하지 않고 **저장소 자체**가 현재 상태·설계 의도·개발 계획·작업 규칙을 설명한다. 개인 프로젝트에서도 같은 구조를 그대로 쓴다.
+
+<!-- 새 프로젝트로 초기화한 뒤에는 이 README를 프로젝트 소개(무엇을, 왜, 어떻게 실행하는지)로 교체한다. 절차는 .ai/BOOTSTRAP.md 참고. 그림은 mermaid — GitHub에서 바로 렌더링된다. -->
+
+## The Idea in One Picture
+
+규칙은 한 곳, 장기 지식은 모두가 공유, 단기 상태는 **작업(스트림)마다 따로**. 서로 다른 사람은 서로 다른 디렉터리만 쓰기 때문에 상태 파일이 병합에서 충돌하지 않는다.
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#E3ECFA', 'primaryTextColor': '#0B1F3A', 'primaryBorderColor': '#2F5E9E', 'lineColor': '#2F5E9E', 'textColor': '#0B1F3A', 'clusterBkg': '#F1F3F5', 'clusterBorder': '#8A97A6', 'edgeLabelBackground': '#FFFFFF', 'fontSize': '14px'}}}%%
+flowchart TB
+  A["AGENTS.md<br/>규칙 15개 · 모두 읽음 · PR로만 변경"]
+  subgraph DOCS["docs/ — 장기 지식 (모두 읽음, spec은 구현보다 먼저 main에)"]
+    direction LR
+    PRD[PRD] --- ARCH[ARCHITECTURE] --- API[api/] --- PH[phases/] --- ADR[decisions/]
+  end
+  subgraph WORK[".ai/work/ — 단기 상태 (스트림마다 하나, 소유자만 씀)"]
+    direction LR
+    S1["02-T3-auth/<br/>Owner A · ws/02-T3-auth"]
+    S2["02-T4-orders/<br/>Owner B · ws/02-T4-orders"]
+    S3["spec-payment/<br/>Owner C · ws/spec-payment"]
+  end
+  T[".ai/team/announcements/<br/>팀 공지 · 파일 하나가 공지 하나"]
+  L[".ai/local/<br/>개인 메모리 · git 밖 · 내 Agent만"]
+  A --> DOCS
+  DOCS --> WORK
+  T -. 각 스트림이 Acked 로 확인 .-> WORK
+  L -. 내 스트림에만 .-> S1
+```
+
+## Design Goals
+
+1. 모든 Agent가 같은 규칙을 공유한다 → 규칙은 `AGENTS.md` 한 곳에만 둔다.
+2. 새 Agent는 최소 context만 읽고 작업을 이어간다 → `AGENTS.md` → 내 스트림 `CURRENT.md` → `HANDOFF.md` → 스크립트 출력 → 현재 `PLAN.md`.
+3. 장기 지식(`docs/`)과 단기 상태(`.ai/`)를 분리한다.
+4. 단기 상태의 단위는 저장소가 아니라 **스트림**이다 → 브랜치 `ws/<id>` = `.ai/work/<id>/` = 소유자 1명 = Task 1개.
+5. 개발은 Phase 단위로 계획·검증하고, Phase는 사람별·구성요소별로 병렬 진행할 수 있다 → `docs/phases/`.
+6. Agent 간·사람 간 인수인계는 파일로 한다 → `HANDOFF.md`, `ai-stream.sh take`.
+7. 사람의 직접 수정과 동료의 변경은 어느 쪽도 되돌리지 않는다 → 커밋 trailer + checkpoint로 자동 분류.
+8. Spec(PRD · ARCHITECTURE · API)이 대화보다 높은 source of truth이고, spec 변경은 구현보다 먼저 main에 들어간다.
+9. 세션이 언제 끊겨도 저장소만으로 재개한다 → Progress 체크리스트, WIP 커밋, handoff-first.
+10. 팀 예절은 문서가 아니라 검사로 건다 → 훅과 CI가 "남의 스트림 수정", "Touches 밖 spec 변경", "미확인 공지"를 막는다.
+11. 읽는 사람이 다르면 형식도 다르다 → **커밋은 Agent가 읽는다**(짧고 규격대로, 토큰 절약), **PR·이슈·문서는 사람이 읽는다**(맥락과 가독성).
+
+## Repository Layout
+
+```text
+/
+├── AGENTS.md                  # 모든 Agent 공통 규칙 15개 (프로세스의 source of truth)
+├── CLAUDE.md · GEMINI.md      # 엔진별 진입점 → @AGENTS.md
+├── README.md
+├── docs/                      # 장기 지식 — 모두가 읽고, PR로만 바뀐다
+│   ├── PRD.md                 # 제품 요구사항 (무엇을, 왜)
+│   ├── ARCHITECTURE.md        # 현재 구조. Module Boundaries의 Owner 열이 소유권의 기준
+│   ├── api/openapi.yaml       # REST API spec (machine-readable)
+│   ├── phases/
+│   │   ├── README.md          # Phase 표 — 각 PLAN.md 머리에서 생성 (ai-stream.sh phases)
+│   │   ├── _template/         # 새 Phase용 PLAN.md / RESULT.md
+│   │   └── NN-<name>/         # PLAN.md(Status·Lead·Depends on·Tasks·Touches) / RESULT.md
+│   └── decisions/             # ADR — ADR-YYYYMMDD-<slug>.md (병합 = Accepted)
+├── .ai/                       # 단기 상태
+│   ├── README.md              # .ai/ 구조와 Agent용 이력 조회 가이드
+│   ├── BOOTSTRAP.md           # 템플릿 → 프로젝트 초기화 절차 (초기화 후 삭제)
+│   ├── work/                  # 스트림 — 브랜치 ws/<id> 하나에 디렉터리 하나
+│   │   ├── _template/
+│   │   └── <id>/              # CURRENT.md · HANDOFF.md · LOG.md · INBOX.md · notes/
+│   ├── team/announcements/    # 팀 공지 (must-read) — 파일 하나가 공지 하나, 스트림이 Acked로 확인
+│   └── local/                 # 개인 메모리 — git이 추적하지 않는다. 내 Agent만 읽는다
+├── .githooks/                 # commit-msg(문법 검사·trailer 자동) · pre-push(빠른 점검) · post-merge(유입 요약) · post-checkout
+├── .gitmessage                # 커밋 메시지 틀 (setup --local 이 commit.template 으로 등록)
+├── .claude/
+│   ├── agents/git-flow.md     # git 흐름을 맡는 역할 (PR 리뷰·유지보수) — 팀이 공유
+│   └── agent-memory/<role>/   # 역할별 프로젝트 메모리 (be-architect 등)
+├── .github/                   # (GitHub 사용 시) PR 템플릿 · 이슈 템플릿 · CODEOWNERS · ci.yml · flow.yml
+├── scripts/
+│   ├── ai-start.sh            # 세션 시작 — 내 스트림 확인, 변경 분류, spec 유입·공지 안내, next steps
+│   ├── ai-end.sh              # 세션 종료 점검 · --ready(PR 준비) · --ci(PR 검사)
+│   └── ai-stream.sh           # 스트림·Phase·히스토리 관리 (아래 Commands)
+├── src/                       # 구현 (단일 패키지 기본값 — 구성요소가 여럿이면 초기화 시
+└── tests/                     # 테스트  backend/ frontend/ db/ infra/ 같은 디렉터리로 교체)
+```
+
+### 누가 무엇을 쓰는가
+
+| 위치 | 읽는 사람 | 쓰는 사람 | 충돌하지 않는 이유 |
+|------|----------|----------|-------------------|
+| `docs/` | 모두 | 스트림(PR) | 변경 빈도가 낮고 리뷰를 거친다. spec은 구현보다 먼저 |
+| `.ai/work/<id>/` | 모두 읽기 가능 | **소유자만** | 사람마다 다른 디렉터리 |
+| `.ai/team/announcements/` | 모두 | 변경을 만든 PR | 파일 하나 = 공지 하나, 고치지 않는다 |
+| `.ai/local/` | 나의 Agent | 나의 Agent | git 밖 |
+| `.claude/agent-memory/` | 그 역할 | 그 역할 (PR 준비 시) | 항목이 독립적, union merge |
+
+## How to Use This Template
+
+### 리드 (프로젝트 시작)
+
+1. 이 저장소를 "Use this template"로 복제해 새 저장소를 만든다.
+2. `.ai/BOOTSTRAP.md`의 **Project Description**을 채우고, Agent에게 `BOOTSTRAP.md`를 수행하라고 지시한다 (`ws/chore-bootstrap` 브랜치에서). Agent가 스택·저장소 구성을 정하고 placeholder를 채우고 ADR과 Phase 계획을 만든 뒤 `BOOTSTRAP.md`를 삭제한다.
+3. `scripts/ai-stream.sh setup`을 실행한다 — main 보호, merge commit 병합(squash 금지), 병합 메시지 "제목 + 본문", 브랜치 자동 삭제, CODEOWNERS 생성. `gh`가 없으면 수동 체크리스트가 출력된다.
+4. `docs/ARCHITECTURE.md` Module Boundaries의 Owner 열에 구성요소별 담당을 적는다.
+
+### 팀원 (합류)
+
+1. clone 후 `scripts/ai-stream.sh setup --local` — 훅 경로, 커밋 메시지 틀, `git ai-log` alias, `.ai/local/` 생성 (여러 기기를 쓰면 `--local-memory <개인 경로>`로 심링크).
+2. `git config user.email`이 팀에서 쓰는 주소인지 확인한다. 이 주소가 스트림 소유자 식별자다.
+3. Agent 진입점은 아래 표. 규칙은 `AGENTS.md` 하나다.
+
+### 개인 프로젝트
+
+같은 절차에서 PR만 빠진다. `ai-stream.sh open` → 작업 → `ai-stream.sh merge`(같은 검사 후 로컬 `--no-ff` 병합). `origin`이 없어도 모든 스크립트가 로컬 브랜치를 본다.
+
+## Daily Flow — Task 하나의 생애
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#E3ECFA', 'primaryTextColor': '#0B1F3A', 'primaryBorderColor': '#2F5E9E', 'lineColor': '#2F5E9E', 'textColor': '#0B1F3A', 'clusterBkg': '#F1F3F5', 'clusterBorder': '#8A97A6', 'edgeLabelBackground': '#FFFFFF', 'fontSize': '14px'}}}%%
+flowchart LR
+  O["ai-stream.sh open 02/T3 auth<br/>브랜치 ws/02-T3-auth<br/>+ .ai/work/02-T3-auth/ · push"]
+  subgraph SESSION["세션 (반복)"]
+    direction LR
+    ST["ai-start.sh<br/>Resume? · 공지 · 유입 spec · 직접 수정"]
+    IM["구현<br/>Progress 갱신 · WIP 커밋"]
+    EN["ai-end.sh<br/>점검 → close commit → push"]
+    ST --> IM --> EN
+  end
+  RD["ai-end.sh --ready<br/>Status=REVIEW · PR 초안"]
+  PR["PR 리뷰"]
+  M["main<br/>(merge commit)"]
+  CL["Phase 종료<br/>ws/phase-02-close<br/>RESULT · phases 표 · gc · tag"]
+  O --> SESSION --> RD --> PR --> M --> CL
+  PR -. 수정 요청 → INBOX .-> SESSION
+```
+
+- **세션 시작**: `AGENTS.md`(자동 로드되면 생략) → 내 스트림 `CURRENT.md` → `HANDOFF.md` → `.ai/local/MEMORY.md`(있으면) → `scripts/ai-start.sh`의 next steps (Resume 여부, 미확인 공지, main에서 유입된 spec 변경, 직접 수정 반영, 현재 PLAN) → 구현.
+- **작업 중**: step마다 `CURRENT.md` Progress 갱신, 긴 Task는 WIP 커밋(`Wip:` trailer). main 동기화는 `git merge main`(rebase 아님).
+- **세션 종료**: test → typecheck → lint → 작업 커밋 → `CURRENT`·`HANDOFF`·`LOG` → `scripts/ai-end.sh --set-checkpoint` → close commit(내 스트림·docs/phases·docs/decisions·agent-memory만) → push.
+
+### 두 사람이 동시에 일하면
+
+서로 다른 스트림은 서로 다른 디렉터리만 고치므로 병합에서 만나지 않는다. 먼저 병합된 쪽의 변경은 다른 쪽이 `git merge main`할 때 "동료 변경"으로 안내된다.
+
+```mermaid
+%%{init: {'theme': 'base', 'gitGraph': {'mainBranchName': 'main'}, 'themeVariables': {'git0': '#1F5FBF', 'git1': '#0E7C66', 'git2': '#7A3DB8', 'gitBranchLabel0': '#FFFFFF', 'gitBranchLabel1': '#FFFFFF', 'gitBranchLabel2': '#FFFFFF', 'gitInv0': '#FFFFFF', 'gitInv1': '#FFFFFF', 'gitInv2': '#FFFFFF', 'commitLabelColor': '#0B1F3A', 'commitLabelBackground': '#E3ECFA', 'commitLabelFontSize': '13px', 'tagLabelColor': '#0B1F3A', 'tagLabelBackground': '#FFF3C4', 'tagLabelBorder': '#8A6D00'}}}%%
+gitGraph
+  commit id: "spec: auth v2"
+  branch ws-02-T3-auth
+  checkout ws-02-T3-auth
+  commit id: "ai: open T3"
+  commit id: "feat: token refresh"
+  checkout main
+  branch ws-02-T4-orders
+  checkout ws-02-T4-orders
+  commit id: "ai: open T4"
+  commit id: "feat: order schema"
+  commit id: "ai: close"
+  checkout main
+  merge ws-02-T4-orders id: "PR #42 [02/T4]"
+  checkout ws-02-T3-auth
+  merge main id: "merge main"
+  commit id: "ai: close 3/5"
+  checkout main
+  merge ws-02-T3-auth id: "PR #43 [02/T3]"
+```
+
+(그림의 브랜치 이름은 mermaid 제약으로 `ws-`를 썼다. 실제 브랜치는 `ws/02-T3-auth`다. A가 `merge main`하는 시점에 B의 PR #42가 "동료 변경"으로 안내된다.)
+
+## Phases — 병렬로 흐른다
+
+Phase는 "독립적으로 검증 가능한 결과 하나"이고, `Depends on`으로 이어진 그래프다. 의존이 없는 Phase는 사람별·구성요소별로 동시에 진행하며 Phase마다 Lead가 있다. 표(`docs/phases/README.md`)는 각 `PLAN.md` 머리에서 생성한다.
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#E3ECFA', 'primaryTextColor': '#0B1F3A', 'primaryBorderColor': '#2F5E9E', 'lineColor': '#2F5E9E', 'textColor': '#0B1F3A', 'clusterBkg': '#F1F3F5', 'clusterBorder': '#8A97A6', 'edgeLabelBackground': '#FFFFFF', 'fontSize': '14px'}}}%%
+flowchart LR
+  P1["01 project-setup<br/>DONE"]
+  P2["02 spec-orders<br/>Lead C · DONE"]
+  P3["03 backend-orders<br/>Lead A · IN_PROGRESS<br/>스트림 03-T1, 03-T2"]
+  P4["04 frontend-orders<br/>Lead B · IN_PROGRESS<br/>스트림 04-T1"]
+  P5["05 integration<br/>PLANNED"]
+  P1 --> P2
+  P2 --> P3
+  P2 --> P4
+  P3 --> P5
+  P4 --> P5
+```
+
+## Two Audiences — 커밋은 Agent가, PR은 사람이 읽는다
+
+| | 커밋 메시지 | PR · 이슈 · 문서 |
+|---|---|---|
+| 독자 | Agent (사람은 GitHub UI로 본다) | 개발자·리뷰어 |
+| 목표 | `--grep` 한 번에 찾기, 한 줄 ≈ 20토큰 | 맥락이 한눈에, 리뷰 포인트가 분명 |
+| 형식 | `<type>(<scope>): <summary>`(영어, ≤ 60자) + 키-값 body ≤ 5줄 + 고정 trailer(`Agent Task Stream Spec Refs Wip`) | 한국어 산문 + 섹션(무엇을·왜 / 리뷰 포인트 / Spec 변경 / 확인 방법), 에이전트 산출물은 접힘, 맨 끝에 trailer 블록 |
+
+```text
+feat(backend): add token refresh
+
+Why: 세션 만료 시 재로그인 없이 갱신 (FR-7)
+Test: tests/auth/test_refresh.py 3건
+
+Agent: claude-code
+Task: 02/T3
+Stream: 02-T3-auth
+Spec: no
+```
+
+- 스트림 부기(open · close · take)는 type `ai`로 모아 두므로 기능 이력만 보려면 `--invert-grep --grep='^ai('` 한 번이면 된다.
+- Agent는 `git log`를 맨몸으로 부르지 않는다 — `git ai-log -n 20`(한 줄 형식), `--first-parent main`, `--grep='^Task: 02/T3'`, `-- <path>`, diff 전에 `--stat`. 전체 레시피는 `.ai/README.md`.
+- PR 제목은 `<type>(<scope>): <summary> [<phase>/<task>]` — 병합 메시지가 "제목 + 본문"이므로 main의 first-parent 로그에서 PR 하나가 한 줄이고, 본문 끝의 trailer 블록이 merge commit의 trailer가 된다. Agent는 본문 산문을 읽지 않는다.
+
+## Roles
+
+| 역할 | 하는 일 |
+|------|--------|
+| 리드 | Phase 계획(`ai-stream.sh phase new`), spec·ADR 승인, 공지 작성, `docs/`의 CODEOWNER |
+| 개발자 | 스트림 소유. 자기 Agent에게 INBOX로 지시, PR 본문 다듬기와 리뷰, 동료 스트림은 읽기만 |
+| 작업 Agent | 스트림 안에서 규칙대로 구현·문서화. `AGENTS.md`가 유일한 규칙 |
+| 역할 Agent (be-architect 등) | 전문 판단. 프로젝트 메모리는 `.claude/agent-memory/<role>/` |
+| flow 역할 (`git-flow`) | CI에서 PR 리뷰(본문↔HANDOFF 일치, Spec changes, 공지 필요 여부), 매일 유지보수(stale 스트림, drift). 코멘트와 PR로만 말한다 — 전략은 ADR이 정한다 |
+
+## Agent Entry Points
+
+| Agent | 읽는 파일 | 비고 |
+|-------|-----------|------|
+| Codex (CLI / ChatGPT) | `AGENTS.md` | 기본 지원 |
+| Claude Code | `CLAUDE.md` → `AGENTS.md` | `@AGENTS.md` import. `.claude/agents/`의 역할을 서브에이전트로 인식 |
+| Gemini CLI | `GEMINI.md` → `AGENTS.md` | `@./AGENTS.md` import |
+| 웹 채팅(ChatGPT, Claude 등) | `AGENTS.md` + 내 스트림 `CURRENT.md` + `scripts/ai-start.sh` 출력을 첫 메시지로 | 결과는 사람이 저장소에 반영하고 trailer를 붙여 커밋 |
+| 기타 도구(Cursor, Copilot 등) | 도구별 설정에서 `AGENTS.md` 참조 | 규칙을 복사하지 않는다 |
+
+Agent CLI를 쓸 때는 환경변수 `AI_AGENT=<이름>`(예: `claude-code`)을 두면 `commit-msg` 훅이 `Agent:` trailer를 자동으로 붙인다.
+
+## Commands
+
+| 명령 | 용도 |
+|------|------|
+| `scripts/ai-stream.sh open <phase>/<task> <slug>` · `open spec <slug> --touches …` · `open chore <slug>` · `open --reopen …` | 스트림 열기 (Touches 겹침 경고) |
+| `scripts/ai-stream.sh status` | 팀 현황판 — Phase별 활성 스트림 · Owner · Status · 마지막 push · 겹침 · stale |
+| `scripts/ai-stream.sh take` | 남의 스트림 인수 (Owner 변경 커밋 + push) |
+| `scripts/ai-stream.sh history --type spec` · `--scope backend` · `--phase 02` · `--task 02/T3` · `--stream <id>` | main first-parent 로그에서 원하는 이력만, 한 줄 형식 |
+| `scripts/ai-stream.sh digest [--since <tag>]` | 병합된 스트림들의 LOG로 다이제스트·릴리스 노트 초안 (저장하지 않는다) |
+| `scripts/ai-stream.sh phase new <name>` · `phases` · `tag NN` · `gc` | Phase 열기 · 표 재생성 · 태그 · 병합된 스트림 정리 |
+| `scripts/ai-stream.sh announce` · `codeowners` · `setup [--local]` · `merge` · `flow <review|maintain>` | 공지 색인 · CODEOWNERS 생성 · 저장소/개인 설정 · 개인용 병합 · flow 역할 수동 호출 |
+| `scripts/ai-start.sh [--diff]` · `scripts/ai-end.sh [--set-checkpoint | --ready [--pr] | --quick | --ci]` | 세션 시작 · 종료 점검 / PR 준비 / 훅용 빠른 점검 / CI |
+
+## For Developers
+
+- **내 작업 현황**: `.ai/work/<id>/LOG.md` 맨 위 항목. PR을 낼 때 `--ready`가 이것을 사람이 읽을 순서로 재배열한 초안을 준다.
+- **팀 현황**: `scripts/ai-stream.sh status`, 또는 PR 목록(라벨 `type:*` · `scope:*` · `phase:*`).
+- **무슨 일이 있었나**: GitHub의 PR 목록이 사람용 이력이다. 터미널에서는 `git ai-log --first-parent main -n 20`.
+- **직접 수정**: 평소처럼 커밋한다(`.gitmessage` 틀이 뜬다). 다음 세션이 "사람의 직접 수정"으로 분류해 되돌리지 않고 반영한다.
+- **지시 남기기**: `.ai/work/<id>/INBOX.md`에 한 줄. 팀 전체가 봐야 하면 공지(`.ai/team/announcements/`)를 변경 PR에 같이 넣는다 — `Required: yes`면 각 스트림이 확인(Acked)하기 전에는 PR이 병합되지 않는다.
+- **동료에게 요청**: 이슈(`task-request` 템플릿)나 PR 코멘트로. 소유자가 자기 INBOX로 옮긴다. 남의 `.ai/work/<id>/`는 고치지 않는다(CI가 막는다).
+- **중단된 세션**: 내 스트림 `CURRENT.md`의 Status가 `IN_PROGRESS`면 세션이 끊긴 것이다. 그대로 Agent를 시작하면 Resume 절차를 따른다. 동료 스트림의 `IN_PROGRESS`는 정상 작업 중이라는 뜻이다.
+- **인수인계**: `HANDOFF.md`의 `To:`에 다음 사람을 적어 push하면, 그 사람이 `ai-stream.sh take`로 잇는다.
+
+## Rules of Thumb
+
+1. push하지 않은 것은 팀에 없는 것이다 — open · close commit · WIP는 push한다.
+2. 남의 스트림 디렉터리는 읽되 쓰지 않는다.
+3. spec을 바꿔야 하면 spec 스트림으로 먼저 main에 넣는다. 내 Touches 안의 작은 인터페이스 변경만 구현 PR에 실을 수 있다.
+4. Touches 밖 파일을 고치고 싶으면 먼저 제안하고, 승인되면 `CURRENT.md`의 Touches를 고친 뒤 작업한다.
+5. 커밋은 짧고 규격대로, 설명은 PR에. 비밀값은 `.ai/`에도, `.ai/local/`에도 적지 않는다.
+
+## Where to Read More
+
+- 규칙 전체: `AGENTS.md` (15개 Rules · Session Procedure · Commit Format · History)
+- 왜 이런 구조인가: `docs/decisions/` — 저장소를 공유 메모리로(ADR-20260829-…), checkpoint와 세션 안전, 규칙·절차 분리, 실행 가능한 제약, 스트림 상태와 브랜치·PR 협업(ADR-20260907-…), git 전략
+- `.ai/` 세부와 Agent용 이력 조회 가이드: `.ai/README.md` · 공지 형식: `.ai/team/README.md`

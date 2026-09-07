@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# post-merge — git merge main 뒤 main 유입 변경 요약 (저장하지 않는다; ai-start.sh 가 같은 정보를 다시 도출한다).
+branch=$(git symbolic-ref -q --short HEAD 2>/dev/null || true)
+case "$branch" in ws/*) ;; *) exit 0;; esac
+root=$(git rev-parse --show-toplevel)
+[ -x "$root/scripts/ai-start.sh" ] && bash "$root/scripts/ai-start.sh" --upstream 2>/dev/null | sed 's/^/[post-merge] /' || true
+exit 0

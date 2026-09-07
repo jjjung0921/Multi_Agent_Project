@@ -1,0 +1,47 @@
+# REST API의 source of truth.
+# - 구현은 이 문서를 따르고, API 변경은 구현과 같은 변경에서 이 문서를 갱신한다.
+# - REST API가 없는 프로젝트라면 docs/api/ 를 삭제하고 AGENTS.md·ARCHITECTURE.md의 참조를 제거한다.
+# - 검증 예: npx @redocly/cli lint docs/api/openapi.yaml
+openapi: 3.1.0
+info:
+  title: <프로젝트 이름> API
+  version: 0.1.0
+  description: <API 한 줄 설명>
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: system
+    description: 상태 확인 등 시스템 엔드포인트
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      tags: [system]
+      responses:
+        "200":
+          description: 서비스 정상
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 기계가 읽는 에러 코드
+        message:
+          type: string
+          description: 사람이 읽는 설명

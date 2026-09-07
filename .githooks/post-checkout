@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# post-checkout — ws/* 브랜치로 옮기면 스트림 요약 한 줄과 소유자 경고. (args: prev new branch-flag)
+[ "${3:-0}" = "1" ] || exit 0
+branch=$(git symbolic-ref -q --short HEAD 2>/dev/null || true)
+case "$branch" in ws/*) ;; *) exit 0;; esac
+id=${branch#ws/}; cur=".ai/work/$id/CURRENT.md"
+[ -f "$cur" ] || exit 0
+owner=$(sed -n 's/^- Owner: *//p' "$cur" | head -n1); task=$(sed -n 's/^- Task: *//p' "$cur" | head -n1)
+status=$(sed -n '/^## Status/,/^## /p' "$cur" | grep -vE '^(## |<!--|$)' | head -n1)
+me=$(git config user.email)
+echo "[post-checkout] stream $id · task $task · status ${status:-?} · owner $owner$([ "$owner" = "$me" ] && echo ' (you)' || echo ' — 내 스트림이 아니다: 읽기만 하거나 scripts/ai-stream.sh take')"
+exit 0

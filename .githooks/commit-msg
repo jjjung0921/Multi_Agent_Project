@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# commit-msg — subject 문법·길이 검사, Stream:(브랜치)·Agent:($AI_AGENT)·Spec:(docs/ diff) trailer 자동 추가. bash 3.2+, git 2.23+.
+# 병합·revert·fixup 커밋은 검사하지 않는다. 우회: git commit --no-verify (CI 가 다시 검사한다).
+msgfile=$1
+subject=$(grep -m1 -v '^#' "$msgfile" | grep -m1 . || true)
+case "$subject" in ""|"Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0;; esac
+[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] && exit 0
+
+if ! printf '%s' "$subject" | grep -qE '^(feat|fix|refactor|test|docs|chore|ai|spec|adr|plan|phase-close|hotfix|announce)\([A-Za-z0-9._/-]+\): .{1,72}$'; then
+  echo "commit-msg: subject 문법 위반 — <type>(<scope>): <summary>  (type: feat fix refactor test docs chore ai · summary ≤ 60자 영어 명령형)" >&2
+  echo "            받은 것: '$subject'" >&2
+  exit 1
+fi
+summary=${subject#*: }
+if [ "${#summary}" -gt 60 ]; then echo "commit-msg: summary 가 60자를 넘는다 (${#summary}) — 자세한 것은 body 의 Why:/What: 이나 PR 본문에" >&2; exit 1; fi
+
+branch=$(git symbolic-ref -q --short HEAD 2>/dev/null || true)
+add=()
+case "$branch" in ws/*) add+=(--trailer "Stream: ${branch#ws/}");; esac
+if [ -n "${AI_AGENT:-}" ]; then add+=(--trailer "Agent: $AI_AGENT"); fi
+if git diff --cached --name-only -- docs/PRD.md docs/ARCHITECTURE.md docs/api 2>/dev/null | grep -q .; then add+=(--trailer "Spec: yes"); fi
+if [ ${#add[@]} -gt 0 ]; then
+  git interpret-trailers --in-place --if-exists doNothing "${add[@]}" "$msgfile"
+fi
+exit 0
