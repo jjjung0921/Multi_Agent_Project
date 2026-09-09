@@ -78,7 +78,7 @@ flowchart TB
 ├── scripts/
 │   ├── ai-start.sh            # 세션 시작 — 내 스트림 확인, 변경 분류, spec 유입·공지 안내, next steps
 │   ├── ai-end.sh              # 세션 종료 점검 · --ready(PR 준비) · --ci(PR 검사)
-│   └── ai-stream.sh           # 스트림·Phase·히스토리 관리 (아래 Commands)
+│   └── ai-stream.sh           # 스트림·Phase·히스토리 관리 (아래 Scripts & Hooks)
 ├── src/                       # 구현 (단일 패키지 기본값 — 구성요소가 여럿이면 초기화 시
 └── tests/                     # 테스트  backend/ frontend/ db/ infra/ 같은 디렉터리로 교체)
 ```
@@ -231,18 +231,48 @@ Spec: no
 
 Agent CLI를 쓸 때는 환경변수 `AI_AGENT=<이름>`(예: `claude-code`)을 두면 `commit-msg` 훅이 `Agent:` trailer를 자동으로 붙인다.
 
-## Commands
+## Scripts & Hooks — 무엇이 무엇을 하나
 
-| 명령 | 용도 |
-|------|------|
-| `scripts/ai-stream.sh open <phase>/<task> <slug>` · `open spec <slug> --touches …` · `open chore <slug>` · `open --reopen …` | 스트림 열기 (Touches 겹침 경고) |
-| `scripts/ai-stream.sh status` | 팀 현황판 — Phase별 활성 스트림 · Owner · Status · 마지막 push · 겹침 · stale |
-| `scripts/ai-stream.sh take` | 남의 스트림 인수 (Owner 변경 커밋 + push) |
-| `scripts/ai-stream.sh history --type spec` · `--scope backend` · `--phase 02` · `--task 02/T3` · `--stream <id>` | main first-parent 로그에서 원하는 이력만, 한 줄 형식 |
-| `scripts/ai-stream.sh digest [--since <tag>]` | 병합된 스트림들의 LOG로 다이제스트·릴리스 노트 초안 (저장하지 않는다) |
-| `scripts/ai-stream.sh phase new <name>` · `phases` · `tag NN` · `gc` | Phase 열기 · 표 재생성 · 태그 · 병합된 스트림 정리 |
-| `scripts/ai-stream.sh announce` · `codeowners` · `setup [--local]` · `merge` · `flow <review|maintain>` | 공지 색인 · CODEOWNERS 생성 · 저장소/개인 설정 · 개인용 병합 · flow 역할 수동 호출 |
-| `scripts/ai-start.sh [--diff]` · `scripts/ai-end.sh [--set-checkpoint | --ready [--pr] | --quick | --ci]` | 세션 시작 · 종료 점검 / PR 준비 / 훅용 빠른 점검 / CI |
+스크립트는 셋뿐이다. `ai-start.sh`는 **지금 상황 읽기**, `ai-end.sh`는 **끝낼 자격 검사**(같은 검사를 pre-push에서는 가볍게, CI에서는 전부), `ai-stream.sh`는 **스트림·Phase·이력의 생성과 조회**. 훅은 이 셋을 git 이벤트에 붙이는 접착제다. LLM을 부르는 것은 `flow` 하나뿐이고 나머지는 전부 결정적이다.
+
+### `scripts/` — 사람·Agent가 직접 부른다
+
+| 명령 | 언제 | 하는 일 | 바꾸는 것 |
+|------|------|---------|-----------|
+| `ai-start.sh` | 세션 시작 | 내 스트림 확인(`ws/*`·소유자·`.lock`) → checkpoint 이후 커밋을 **직접 수정 / 동료 유입 / 남의 스트림**으로 분류 → INBOX·미확인 공지·REVIEW 재작업·Touches가 겹치는 활성 스트림·컨텍스트 크기 → next steps | `.lock`만 |
+| `ai-start.sh --diff` | 직접 수정을 살필 때 | 위 + 사람 커밋의 변경 파일 목록 | 없음 |
+| `ai-start.sh --upstream` | `post-merge` 훅이 호출 | 유입 변경 분류만, lock 없음 | 없음 |
+| `ai-start.sh --force` | 죽은 세션의 lock 정리 | `.lock`이 있어도 진행 | `.lock` |
+| `ai-end.sh` | close commit 전 | 종료 점검: Status≠IN_PROGRESS, 상한, placeholder, close 범위, 비밀값, 미커밋 변경 | 없음 |
+| `ai-end.sh --set-checkpoint` | 종료 절차 | CURRENT의 Last Checkpoint를 HEAD로 기록한 뒤 점검 | `CURRENT.md` |
+| `ai-end.sh --ready [--pr]` | Task 완료 | main 동기화·spec·공지 검사 → Status=REVIEW 커밋·push → PR 제목·본문 초안 출력(`--pr`: `gh`로 생성/갱신) | 커밋·push |
+| `ai-end.sh --quick` | `pre-push` 훅이 호출 | 브랜치·남의 스트림 디렉터리·비밀값만, 수 초 | 없음 |
+| `ai-end.sh --ci` | GitHub Actions `ai-check` | PR 검사 전부: 브랜치명, 남의 스트림 미수정, main 동기화, Touches 밖 spec 변경, AGENTS.md 변경 시 공지, Required 공지 ack, PR 제목 규격, 생성 파일 drift, 상한, 비밀값, `{{` 잔여 | 없음 (exit 1 = 병합 차단) |
+| `ai-stream.sh open <NN>/<Tk> <slug>` · `open spec\|chore\|plan\|phase-close <slug> --touches …` · `--reopen` | 작업 시작 | 브랜치 `ws/<id>` + `.ai/work/<id>/`(템플릿 치환) + push. Touches 겹침 경고. `--reopen`은 `-r2` + `Supersedes:` | 브랜치·커밋·push |
+| `ai-stream.sh take` | 인수인계 | 현재 스트림 Owner를 나로 바꾸는 커밋 + push | 커밋·push |
+| `ai-stream.sh status` | 현황 볼 때 | 원격 `ws/*`에서 팀 현황판 도출 — Phase·소유자·Task·Status·경과일·stale·Touches 겹침 | 없음 |
+| `ai-stream.sh gc [--dry-run]` | Phase 종료 스트림 | 병합됐고 브랜치가 없는 스트림 디렉터리 `git rm`(커밋은 호출자) | 스테이징 |
+| `ai-stream.sh merge` | 1인 프로젝트만 | `--ci` 통과 후 로컬 `--no-ff` 병합(PR 대용) | main |
+| `ai-stream.sh tag NN` | Phase 종료 PR 병합 뒤 | `phase/NN` 태그 + push | 태그 |
+| `ai-stream.sh phases [--check]` | PLAN 머리 변경 시 / CI | `docs/phases/README.md` 표 생성 / drift 검사 | README 표 |
+| `ai-stream.sh phase new <name>` | 새 Phase | 다음 번호로 Phase 골격 + `plan-NN-<name>` 스트림 | 파일·브랜치 |
+| `ai-stream.sh history …` | 이력 조회 | `git ai-log` 래퍼: `--type` `--scope` `--phase` `--task` `--stream` `--agent` `--spec` `--no-ai` `--branches` `-n` `-- <path>` | 없음 |
+| `ai-stream.sh digest [--since]` | 회고·주간 정리 | main 병합 커밋마다 그 시점 스트림 LOG 맨 위 항목을 모아 출력(gc 뒤에도) | 없음 |
+| `ai-stream.sh announce [--check]` | 공지 추가 시 / CI | `.ai/team/README.md` 공지 색인 생성 / 검사 | 색인 |
+| `ai-stream.sh codeowners [--check]` | Owner 열 변경 시 / CI | ARCHITECTURE Module Boundaries의 Owner 열 → `.github/CODEOWNERS` | CODEOWNERS |
+| `ai-stream.sh setup` | 리드, 저장소 1회 | main 보호·merge commit만·병합 메시지 제목+본문·브랜치 자동 삭제 등 저장소 설정 체크리스트 | GitHub 설정 |
+| `ai-stream.sh setup --local [--local-memory <path>]` | 팀원, clone 1회 | `core.hooksPath` · `commit.template` · `ai-log` alias · `.ai/local/` 생성(개인 경로 심링크 옵션) | 로컬 git config |
+| `ai-stream.sh flow review\|maintain\|setup` | CI·수동 | git-flow 역할에 줄 프롬프트 + 컨텍스트 출력 | 없음 |
+| `lib/common.sh` | 직접 실행 안 함 | 위 셋이 source — 경로 상수, 필드/섹션 파서, `ws_refs`, Touches 매칭·겹침, 공지 적용 판정, 비밀값 스캔, 템플릿 `render` | — |
+
+### `.githooks/` — git이 자동으로 부른다 (`setup --local`로 활성화)
+
+| 훅 | 시점 | 하는 일 | 실패 시 |
+|----|------|---------|---------|
+| `commit-msg` | 커밋 메시지 확정 직전 | subject `<type>(<scope>): <summary>` 문법·길이 검사, `Stream:`(브랜치)·`Agent:`(`$AI_AGENT`)·`Spec:`(docs/ staged) trailer 자동 추가. 병합·revert·fixup은 건너뜀 | 커밋 거부(`--no-verify`로 우회, CI가 재검사) |
+| `pre-push` | push 직전, `ws/*`에서만 | `ai-end.sh --quick` | push 거부 |
+| `post-merge` | `git merge main` 뒤 | `ai-start.sh --upstream` 결과를 `[post-merge]` 접두로 출력(저장 안 함) | 없음(정보) |
+| `post-checkout` | `ws/*`로 옮겼을 때 | 스트림 요약 한 줄 + 소유자가 내가 아니면 경고 | 없음(정보) |
 
 ## For Developers
 
