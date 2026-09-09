@@ -68,7 +68,7 @@ flowchart TB
 │   │   ├── _template/
 │   │   └── <id>/              # CURRENT.md · HANDOFF.md · LOG.md · INBOX.md · notes/
 │   ├── team/announcements/    # 팀 공지 (must-read) — 파일 하나가 공지 하나, 스트림이 Acked로 확인
-│   └── local/                 # 개인 메모리 — git이 추적하지 않는다. 내 Agent만 읽는다
+│   └── local/                 # 개발자 개인 폴더 — git 밖. MEMORY.md(내 Agent) · INBOX.md · notes/(나)
 ├── .githooks/                 # commit-msg(문법 검사·trailer 자동) · pre-push(빠른 점검) · post-merge(유입 요약) · post-checkout
 ├── .gitmessage                # 커밋 메시지 틀 (setup --local 이 commit.template 으로 등록)
 ├── .claude/
@@ -88,10 +88,20 @@ flowchart TB
 | 위치 | 읽는 사람 | 쓰는 사람 | 충돌하지 않는 이유 |
 |------|----------|----------|-------------------|
 | `docs/` | 모두 | 스트림(PR) | 변경 빈도가 낮고 리뷰를 거친다. spec은 구현보다 먼저 |
-| `.ai/work/<id>/` | 모두 읽기 가능 | **소유자만** | 사람마다 다른 디렉터리 |
+| `.ai/work/<id>/` | 모두 읽기 가능 | **소유자만** (사람은 `INBOX.md`에 지시, Agent는 나머지) | 사람마다 다른 디렉터리 |
 | `.ai/team/announcements/` | 모두 | 변경을 만든 PR | 파일 하나 = 공지 하나, 고치지 않는다 |
-| `.ai/local/` | 나의 Agent | 나의 Agent | git 밖 |
+| `.ai/local/` | 나와 나의 Agent | 나(`INBOX.md`·`notes/`)와 나의 Agent(`MEMORY.md`) | git 밖 — 팀에 보이지 않는다 |
 | `.claude/agent-memory/` | 그 역할 | 그 역할 (PR 준비 시) | 항목이 독립적, union merge |
+
+**개발자 개인 폴더 `.ai/local/`** — `.gitignore`로 제외되어(README만 추적) 이 clone의 주인과 그 Agent만 쓴다. `scripts/ai-stream.sh setup --local`이 만든다.
+
+| 파일 | 누가 쓰나 | 무엇을 |
+|------|----------|--------|
+| `MEMORY.md` (50줄 상한) | 내 Agent | 나에 대해 배운 것 — 선호, 교정, 자주 하는 실수, 내 환경. Agent가 세션 시작 시 `CURRENT`·`HANDOFF` 다음으로 읽는다. 프로젝트 사실은 여기가 아니라 역할 메모리나 `docs/`로 |
+| `INBOX.md` | 나 | 팀에 보이고 싶지 않은 지시. 스트림 `INBOX.md`와 같은 형식·같은 우선순위(Truth ①) |
+| `notes/` | 나 | 개인 메모 |
+
+세 층을 나누는 기준은 "누가 봐야 하는가"다: 팀 전체가 행동해야 하면 `announcements/`, 이 작업을 잇는 사람이 알아야 하면 스트림 `HANDOFF`·`INBOX`, 나만 알면 되면 `.ai/local/`. 기기를 여러 대 쓰면 `setup --local --local-memory <개인 경로>`로 심링크해 같은 메모리를 공유한다. 백업은 git이 해 주지 않으므로 본인 몫이고, 비밀값은 여기에도 두지 않는다.
 
 ## How to Use This Template
 
