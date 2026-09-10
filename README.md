@@ -72,6 +72,8 @@ flowchart TB
 ├── .githooks/                 # commit-msg(문법 검사·trailer 자동) · pre-push(빠른 점검) · post-merge(유입 요약) · post-checkout
 ├── .gitmessage                # 커밋 메시지 틀 (setup --local 이 commit.template 으로 등록)
 ├── .claude/
+│   ├── settings.json          # Claude Code 훅 등록 (SessionStart → ai-start.sh, SessionEnd → .lock 해제)
+│   ├── hooks/                 # 위 훅 스크립트 (session-start.sh · session-end.sh)
 │   ├── agents/git-flow.md     # git 흐름을 맡는 역할 (PR 리뷰·유지보수) — 팀이 공유
 │   └── agent-memory/<role>/   # 역할별 프로젝트 메모리 (be-architect 등)
 ├── .github/                   # (GitHub 사용 시) PR 템플릿 · 이슈 템플릿 · CODEOWNERS · ci.yml · flow.yml
@@ -234,7 +236,7 @@ Spec: no
 | Agent | 읽는 파일 | 비고 |
 |-------|-----------|------|
 | Codex (CLI / ChatGPT) | `AGENTS.md` | 기본 지원 |
-| Claude Code | `CLAUDE.md` → `AGENTS.md` | `@AGENTS.md` import. `.claude/agents/`의 역할을 서브에이전트로 인식 |
+| Claude Code | `CLAUDE.md` → `AGENTS.md` | `@AGENTS.md` import. `.claude/agents/`의 역할을 서브에이전트로 인식. `.claude/settings.json`의 훅이 세션 시작 시 `ai-start.sh`를 자동 실행하고 `AI_AGENT=claude-code`를 설정한다 |
 | Gemini CLI | `GEMINI.md` → `AGENTS.md` | `@./AGENTS.md` import |
 | 웹 채팅(ChatGPT, Claude 등) | `AGENTS.md` + 내 스트림 `CURRENT.md` + `scripts/ai-start.sh` 출력을 첫 메시지로 | 결과는 사람이 저장소에 반영하고 trailer를 붙여 커밋 |
 | 기타 도구(Cursor, Copilot 등) | 도구별 설정에서 `AGENTS.md` 참조 | 규칙을 복사하지 않는다 |
@@ -283,6 +285,17 @@ Agent CLI를 쓸 때는 환경변수 `AI_AGENT=<이름>`(예: `claude-code`)을 
 | `pre-push` | push 직전, `ws/*`에서만 | `ai-end.sh --quick` | push 거부 |
 | `post-merge` | `git merge main` 뒤 | `ai-start.sh --upstream` 결과를 `[post-merge]` 접두로 출력(저장 안 함) | 없음(정보) |
 | `post-checkout` | `ws/*`로 옮겼을 때 | 스트림 요약 한 줄 + 소유자가 내가 아니면 경고 | 없음(정보) |
+
+### `.claude/hooks/` — Claude Code가 자동으로 부른다 (`.claude/settings.json`에 등록, 저장소에 포함)
+
+세션 절차 중 "시작"을 규칙이 아니라 훅으로 강제한다. 종료 절차(`ai-end.sh` → close commit → push)는 Agent가 규칙대로 수행하고, 빠뜨리면 `pre-push`와 CI가 잡는다.
+
+| 훅 | 시점 | 하는 일 | 실패 시 |
+|----|------|---------|---------|
+| `session-start.sh` | 세션 시작·재개·`/clear`·compact | `AI_AGENT=claude-code`를 세션 환경에 설정(`commit-msg`가 `Agent:` trailer를 붙임) → `scripts/ai-start.sh` 실행, 출력을 Agent 컨텍스트에 추가. 재개·compact는 같은 세션의 `.lock`이므로 `--force` | 항상 exit 0 — `ai-start.sh`가 실패하면(스트림 없음·소유자 다름·다른 세션의 lock) 그 안내가 컨텍스트에 들어가고 Agent는 해결 전까지 구현을 시작하지 않는다 |
+| `session-end.sh` | 세션 종료 | 내 스트림의 `.lock` 해제 | 없음 |
+
+다른 Agent CLI(Codex·Gemini)는 같은 절차를 `AGENTS.md` Session Procedure대로 직접 수행한다. 도구별 훅이 있으면 같은 스크립트를 등록하면 된다.
 
 ## For Developers
 

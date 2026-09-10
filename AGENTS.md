@@ -53,7 +53,7 @@
 ## Session Procedure
 
 - **스트림이 없을 때**: `scripts/ai-stream.sh open <phase>/<task> <slug>` (spec/chore는 `open spec|chore <slug> --touches …`). 브랜치 `ws/<id>`와 `.ai/work/<id>/`가 생기고 push된다.
-- **시작**: `scripts/ai-start.sh`를 실행하고 출력의 next steps를 따른다 — Resume/재작업 판단 → 미확인 공지 → main 유입 spec 변경·직접 수정·INBOX 반영 → PLAN의 Task·Acceptance Criteria 확인 → CURRENT의 Status=IN_PROGRESS·Progress 작성과 HANDOFF 초안 → 구현.
+- **시작**: `scripts/ai-start.sh`를 실행하고 출력의 next steps를 따른다(Claude Code는 `.claude/settings.json`의 SessionStart 훅이 자동 실행해 출력을 컨텍스트에 넣는다 — 다른 Agent는 직접 실행) — Resume/재작업 판단 → 미확인 공지 → main 유입 spec 변경·직접 수정·INBOX 반영 → PLAN의 Task·Acceptance Criteria 확인 → CURRENT의 Status=IN_PROGRESS·Progress 작성과 HANDOFF 초안 → 구현.
 - **종료**: test → typecheck → lint → 작업 커밋과 PLAN의 Task SHA 갱신 → CURRENT(Status≠IN_PROGRESS)·HANDOFF·LOG 갱신 → 필요 시 ADR·공지 → `scripts/ai-end.sh --set-checkpoint` → close commit → push.
 - **Task 완료**: `git merge main` → `scripts/ai-end.sh --ready`(Status=REVIEW, PR 초안 출력; `--pr`로 생성) → 소유자가 PR 본문을 다듬어 올린다. Phase 완료는 Lead의 `ws/phase-NN-close` 스트림(RESULT·`ai-stream.sh phases`·`gc`)과 병합 후 `ai-stream.sh tag NN`.
 
