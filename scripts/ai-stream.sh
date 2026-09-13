@@ -9,6 +9,7 @@
 #   merge [<id>] [--title "<제목>"]              개인용: --ci 후 로컬 --no-ff 병합
 #   tag <NN>                                     phase/<NN> 태그 (병합 후)
 #   phases [--check]                             docs/phases/README.md 표 생성 / 검사
+#   trace [--check]                              docs/phases/README.md 추적 표(PRD FR/NFR → Task Refs → 스트림) 생성 / 검사
 #   phase new <name>                             다음 번호로 Phase 골격 + 계획 스트림
 #   history [--type t] [--scope s] [--phase NN] [--task P/T] [--stream id] [--agent a] [--spec] [--no-ai] [--branches] [-n N] [-- path]
 #   digest [--since <date>]                      병합된 스트림들의 LOG 로 다이제스트 (stdout)
@@ -56,7 +57,7 @@ cmd_open() {
       local tline; tline=$(grep -E "^- \[[ x]\] ${kind#*/}\. " "$plan" | head -n1 || true)
       [ -n "$tline" ] || die "$plan 에 Task ${kind#*/} 항목이 없다"
       task_title=$(printf '%s' "$tline" | sed -E 's/^- \[[ x]\] //; s/ — Done when:.*//')
-      [ -z "$touches" ] && touches=$(printf '%s' "$tline" | sed -n 's/.*Touches: *//p' | sed 's/ · Owner:.*//; s/`//g')
+      [ -z "$touches" ] && touches=$(printf '%s' "$tline" | sed -n 's/.*Touches: *//p' | sed -E 's/ · (Owner|Refs):.*//; s/`//g')
       [ -n "$touches" ] || die "PLAN 의 Task 줄에 Touches: 가 없다 — 적거나 --touches 로 지정한다"
       local other
       for other in $(ws_refs | awk '{print $1}') $(git ls-tree --name-only "$base" "$WORK/" 2>/dev/null | sed "s#.*/##"); do
@@ -252,6 +253,60 @@ cmd_phases() {
   replace_between "$f" '<!-- phases:begin -->' '<!-- phases:end -->' "$new"; rm -f "$new"
   say "docs/phases/README.md 표를 갱신했다"
 }
+
+gen_trace_table() { # PRD FR/NFR → Task(Refs) → 스트림 표
+  local streams main; streams=$(mktemp -t ai-tr.XXXXXX); main=$(main_ref)
+  local id ref st task
+  git ls-tree --name-only "$main" "$WORK/" 2>/dev/null | sed 's#/$##; s#.*/##' | while read -r id; do
+    case "$id" in [0-9][0-9]-T[0-9]*) ;; *) continue;; esac
+    task=$(field_from_ref "$main" "$WORK/$id/CURRENT.md" Task); [ -n "$task" ] && printf '%s\t%s (병합)\n' "$task" "$id"
+  done > "$streams"
+  ws_refs | while read -r id ref; do
+    [ -z "$id" ] && continue; is_merged "$ref" && continue
+    case "$id" in [0-9][0-9]-T[0-9]*) ;; *) continue;; esac
+    task=$(field_from_ref "$ref" "$WORK/$id/CURRENT.md" Task); st=$(section_from_ref "$ref" "$WORK/$id/CURRENT.md" Status | head -n1 | tr -d '[:space:]')
+    [ -n "$task" ] && printf '%s\t%s (%s)\n' "$task" "$id" "${st:-?}"
+  done >> "$streams"
+  [ -s "$streams" ] || printf '\n' > "$streams"   # awk 가 파일 경계를 세도록 빈 줄 하나
+  local plans; plans=$(ls docs/phases/[0-9][0-9]-*/PLAN.md 2>/dev/null || true)
+  # shellcheck disable=SC2086
+  awk '
+    FNR == 1 { fidx++ }
+    fidx == 1 { if ($0 ~ /^\| *N?FR-[0-9]+ *\|/) { id = $0; sub(/^\| */, "", id); sub(/ *\|.*/, "", id); if (!(id in prd)) { prd[id] = 1; order[++n] = id } }; next }
+    fidx == 2 { if (NF) { split($0, a, "\t"); smap[a[1]] = (a[1] in smap ? smap[a[1]] ", " : "") a[2] }; next }
+    /^- \[[ x]\] T[0-9]+\. / {
+      phase = FILENAME; sub(/^docs\/phases\//, "", phase); sub(/\/PLAN\.md$/, "", phase); nn = substr(phase, 1, 2)
+      state = (substr($0, 4, 1) == "x") ? "done" : "open"
+      line = $0; sub(/^- \[[ x]\] /, "", line); tk = line; sub(/\..*/, "", tk)
+      title = line; sub(/^T[0-9]+\. /, "", title); sub(/ — Done when:.*/, "", title); gsub(/\|/, "\\|", title)
+      refs = ""; if (match($0, /· Refs: */)) { refs = substr($0, RSTART + RLENGTH); sub(/ · .*/, "", refs); sub(/ *\(commit .*/, "", refs); gsub(/`/, "", refs); sub(/ *$/, "", refs) }
+      pr = ""; if (match($0, /\(commit [^)]*\)/)) pr = substr($0, RSTART + 8, RLENGTH - 9)
+      task = nn "/" tk; cell = "[" task "](" phase "/PLAN.md) — " title
+      if (refs == "") refs = "—"
+      nr = split(refs, rs, /, */)
+      for (i = 1; i <= nr; i++) { r = rs[i]; if (r == "") continue
+        rows[r] = rows[r] "\n| " r " | " cell " | " state " | " (task in smap ? smap[task] : "") " | " pr " |"
+        if (!(r in prd) && !(r in seen)) { seen[r] = 1; extra[++m] = r } }
+      next
+    }
+    function rank(r) { return (r == "—") ? "~2" : (r == "none") ? "~1" : r }
+    function emit(r) { if (r in rows) print substr(rows[r], 2); else print "| " r " | — 미배정 | | | |" }
+    END {
+      print "| Ref | Phase/Task | 상태 | 스트림 | PR · commit |"; print "|-----|------------|------|--------|-------------|"
+      for (i = 1; i <= n; i++) emit(order[i])
+      for (i = 1; i <= m; i++) for (j = i + 1; j <= m; j++) if (rank(extra[j]) < rank(extra[i])) { t = extra[i]; extra[i] = extra[j]; extra[j] = t }
+      for (i = 1; i <= m; i++) emit(extra[i])
+    }' docs/PRD.md "$streams" $plans
+  rm -f "$streams"
+}
+cmd_trace() {
+  local f="docs/phases/README.md" new rc=0; new=$(mktemp -t ai-trc.XXXXXX)
+  grep -q '<!-- trace:begin -->' "$f" || die "$f 에 <!-- trace:begin --> / <!-- trace:end --> 마커가 없다"
+  gen_trace_table > "$new"
+  if [ "${1:-}" = "--check" ]; then check_between "$f" '<!-- trace:begin -->' '<!-- trace:end -->' "$new" || rc=1; rm -f "$new"; return $rc; fi
+  replace_between "$f" '<!-- trace:begin -->' '<!-- trace:end -->' "$new"; rm -f "$new"
+  say "docs/phases/README.md 추적 표를 갱신했다"
+}
 cmd_phase() {
   [ "${1:-}" = "new" ] && [ -n "${2:-}" ] || usage 1
   local name=$2 max=0 d nn cand
@@ -418,6 +473,7 @@ cmd_flow() {
       say "--- status"; cmd_status; say
       say "--- gc --dry-run"; cmd_gc --dry-run; say
       say "--- phases --check"; cmd_phases --check && say "  ok" || say "  drift"; say
+      say "--- trace --check"; cmd_trace --check && say "  ok" || say "  drift"; say
       say "--- codeowners --check"; cmd_codeowners --check && say "  ok" || say "  drift"; say
       say "--- announcements"; ls "$TEAM"/announcements/ 2>/dev/null | grep -v '^_' || say "  (없음)"; say
       say "--- setup --check"; cmd_setup --check;;
@@ -436,6 +492,7 @@ case "$cmd" in
   merge)      cmd_merge "$@";;
   tag)        cmd_tag "$@";;
   phases)     cmd_phases "$@";;
+  trace)      cmd_trace "$@";;
   phase)      cmd_phase "$@";;
   history)    cmd_history "$@";;
   digest)     cmd_digest "$@";;

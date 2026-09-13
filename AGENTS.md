@@ -13,7 +13,7 @@
 
 ## Repository Map
 
-- `docs/PRD.md` 요구사항 · `docs/ARCHITECTURE.md` 현재 구조(Module Boundaries의 Owner = 소유권) · `docs/api/` API spec · `docs/decisions/` ADR · `docs/phases/` Phase 계획/결과
+- `docs/PRD.md` 요구사항 · `docs/ARCHITECTURE.md` 현재 구조(Module Boundaries의 Owner = 소유권) · `docs/api/` API spec · `docs/decisions/` ADR · `docs/phases/` Phase 계획/결과 · 추적 표(PRD FR/NFR → Task `Refs:` → 스트림, `ai-stream.sh trace` 생성)
 - `.ai/work/<id>/` 스트림 상태 — `CURRENT.md` 상태·checkpoint·Touches·Acked · `HANDOFF.md` 인수인계 · `LOG.md` 세션 보고 · `INBOX.md` 소유자 지시 · `notes/` 임시 메모
 - `.ai/team/announcements/` 팀 공지(must-read) · `.ai/local/` 개인 메모리(미추적, 내 Agent만) · `.claude/agent-memory/<역할>/` 역할 메모리 · `.claude/agents/git-flow.md` flow 역할
 - `scripts/ai-start.sh` 세션 시작 · `scripts/ai-end.sh` 종료 점검 / `--ready` PR 준비 / `--ci` · `scripts/ai-stream.sh` 스트림·Phase·이력 관리 · `src/` 구현 · `tests/` 테스트

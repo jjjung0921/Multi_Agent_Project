@@ -39,6 +39,7 @@
 | 중단된 곳 | `git log -1 --format='%(trailers:key=Wip,valueonly)'` | 1줄 |
 | PR 단위 요약 | `scripts/ai-stream.sh history --task 02/T3 --with-pr` — PR 제목 줄 + trailer만 | |
 | 조건 조합 | `scripts/ai-stream.sh history --type spec --scope backend --phase 02 -n 10` | |
+| 요구사항이 어느 Task·스트림에 있나 | `docs/phases/README.md` Traceability 표 (`scripts/ai-stream.sh trace` 생성 — PLAN Task 줄의 `Refs:`) | 표 한 번 |
 
 - main의 first-parent 로그는 PR당 한 줄이다(merge commit의 subject = PR 제목, trailer = PR 본문 끝 블록). 브랜치 커밋은 특정 스트림·Task를 파고들 때만 본다.
 - 스트림 부기 커밋(`ai(<id>): open|close|take`)은 type `ai`로 모여 있어 한 번에 걷어낼 수 있다.

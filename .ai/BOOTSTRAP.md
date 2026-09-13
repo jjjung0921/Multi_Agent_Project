@@ -22,11 +22,11 @@
    - `docs/ARCHITECTURE.md` — 초기 구조. Module Boundaries 표의 Owner 열에 구성요소별 담당(GitHub 핸들 또는 이메일)을 적는다 — 소유권의 SSoT이며 `ai-stream.sh codeowners`가 CODEOWNERS를 만든다. 구성요소가 여럿이면 디렉터리별 책임·경계를 적는다 (미확정 부분은 "TBD (ADR-… 예정)")
    - `docs/api/openapi.yaml` — REST API가 있으면 초기 계약, 없으면 `docs/api/` 삭제 후 참조 제거
 5. 스택·핵심 구조 결정을 `docs/decisions/ADR-YYYYMMDD-<slug>.md`로 기록한다 (`_template.md` 사용; 기존 ADR은 이 템플릿의 협업 구조 결정이므로 유지). 사소한 결정은 ADR로 만들지 않는다.
-6. `docs/phases/01-project-setup/PLAN.md`를 프로젝트에 맞게 조정하고(Lead·Task별 Touches 포함), 전체 개발 계획을 Phase로 나눈다 — `docs/phases/NN-<name>/PLAN.md` 머리(Status·Lead·Depends on)를 채우면 `scripts/ai-stream.sh phases`가 `docs/phases/README.md` 표를 만든다. 처음 2~3개 Phase만 상세 PLAN을 쓰고 나머지는 머리만 둔다. 병렬로 진행할 Phase는 Depends on을 정확히 적는다.
+6. `docs/phases/01-project-setup/PLAN.md`를 프로젝트에 맞게 조정하고(Lead·Task별 Touches 포함), 전체 개발 계획을 Phase로 나눈다 — `docs/phases/NN-<name>/PLAN.md` 머리(Status·Lead·Depends on)를 채우면 `scripts/ai-stream.sh phases`가 `docs/phases/README.md` 표를 만든다. 처음 2~3개 Phase만 상세 PLAN을 쓰고 나머지는 머리만 둔다. 병렬로 진행할 Phase는 Depends on을 정확히 적는다. Task 줄마다 `Refs:`에 부모 FR/NFR ID(없으면 `none`)를 적고 `scripts/ai-stream.sh trace`로 추적 표를 만든다 — PRD의 Must FR이 `미배정`으로 남으면 Phase 계획이 빠진 것이다.
 7. 프로젝트 성격상 불필요한 파일은 삭제한다. 필요한 spec(DB 스키마, 이벤트 스키마, UI 스펙 등)이 있으면 `docs/` 아래에 추가하고 `AGENTS.md`의 Repository Map과 Rule 2 우선순위에 반영한다. 중복된 정보원을 만들지 않는다.
 8. 아래 **Team Setup**을 수행한다. 그다음 이 파일(`.ai/BOOTSTRAP.md`)을 삭제하고, `README.md`·Phase 01 PLAN에서 BOOTSTRAP 참조를 제거한다.
 9. 작업 커밋을 남긴다: `chore(ai): bootstrap project from template` (Commit Format대로 `Agent:`·`Task: 01/T1` trailer 포함 — 훅이 `Stream:`을 붙인다).
-10. 스트림에서 작업했다면 `AGENTS.md`의 Session Procedure(종료)대로 끝내고 `scripts/ai-end.sh --ready`로 PR을 낸다. main에서 직접 했다면(개인 프로젝트) 커밋 후 `scripts/ai-stream.sh phases`·`announce`를 한 번 실행해 파생 파일을 맞춘다.
+10. 스트림에서 작업했다면 `AGENTS.md`의 Session Procedure(종료)대로 끝내고 `scripts/ai-end.sh --ready`로 PR을 낸다. main에서 직접 했다면(개인 프로젝트) 커밋 후 `scripts/ai-stream.sh phases`·`trace`·`announce`를 한 번 실행해 파생 파일을 맞춘다.
 
 ## Output Checklist
 
@@ -37,6 +37,7 @@
 - [ ] Phase 01 PLAN의 T3에 설정 파일·버전 고정·lockfile·`.gitignore` 항목이 구체적으로 적혀 있다
 - [ ] 모든 가정이 `.ai/HANDOFF.md`의 Unverified Assumptions에 있다
 - [ ] Phase PLAN들의 머리(Status·Lead·Depends on)가 채워졌고 `docs/phases/README.md` 표가 `scripts/ai-stream.sh phases` 출력과 같다
+- [ ] 모든 Task 줄에 `Refs:`가 있고 `docs/phases/README.md` 추적 표가 `scripts/ai-stream.sh trace` 출력과 같다 (Must FR에 `미배정` 없음)
 - [ ] `docs/ARCHITECTURE.md` Module Boundaries에 Owner 열이 있고 `.github/CODEOWNERS`가 그것과 일치한다 (GitHub 사용 시)
 - [ ] Team Setup의 항목이 모두 끝났다 (또는 개인 프로젝트로 N/A 표시)
 - [ ] `.ai/BOOTSTRAP.md`가 삭제되었고 남은 참조가 없다

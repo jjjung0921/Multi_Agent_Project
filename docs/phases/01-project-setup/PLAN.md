@@ -39,17 +39,17 @@
 
 <!-- 완료 시 [x]로 바꾸고 완료 커밋 SHA와 PR 번호를 끝에 적는다: (commit abc1234, PR #42) -->
 
-- [ ] T1. `.ai/BOOTSTRAP.md` 수행 — Done when: BOOTSTRAP의 Output Checklist 전부 충족 · Touches: `.` · Owner: 미정
+- [ ] T1. `.ai/BOOTSTRAP.md` 수행 — Done when: BOOTSTRAP의 Output Checklist 전부 충족 · Touches: `.` · Owner: 미정 · Refs: none
 
-- [ ] T2. 스택·핵심 도구 결정 후 ADR 작성 — Done when: ADR이 main에 병합됨 · Touches: `docs/decisions/`, `docs/ARCHITECTURE.md` · Owner: 미정
+- [ ] T2. 스택·핵심 도구 결정 후 ADR 작성 — Done when: ADR이 main에 병합됨 · Touches: `docs/decisions/`, `docs/ARCHITECTURE.md` · Owner: 미정 · Refs: none
 
-- [ ] T3. 제약 층 구성 (T1에서 적은 설정 파일·버전 고정·lockfile·`.gitignore` 목록대로) — Done when: `AGENTS.md` Commands의 install/test/typecheck/lint가 경고 없이 성공하고 설정 파일이 커밋됨 · Touches: `<설정 파일 경로>` · Owner: 미정
+- [ ] T3. 제약 층 구성 (T1에서 적은 설정 파일·버전 고정·lockfile·`.gitignore` 목록대로) — Done when: `AGENTS.md` Commands의 install/test/typecheck/lint가 경고 없이 성공하고 설정 파일이 커밋됨 · Touches: `<설정 파일 경로>` · Owner: 미정 · Refs: none
 
-- [ ] T4. 최소 실행 스켈레톤 + 테스트 — Done when: Run 명령이 동작하고 테스트 1개 이상이 통과 · Touches: `src/`, `tests/` · Owner: 미정
+- [ ] T4. 최소 실행 스켈레톤 + 테스트 — Done when: Run 명령이 동작하고 테스트 1개 이상이 통과 · Touches: `src/`, `tests/` · Owner: 미정 · Refs: none
 
-- [ ] T5. CI에서 install/test/typecheck/lint + `ai-end.sh --ci` 실행 — Done when: PR에서 자동 실행되고 main 보호의 필수 검사로 등록됨 · Touches: `.github/` · Owner: 미정
+- [ ] T5. CI에서 install/test/typecheck/lint + `ai-end.sh --ci` 실행 — Done when: PR에서 자동 실행되고 main 보호의 필수 검사로 등록됨 · Touches: `.github/` · Owner: 미정 · Refs: none
 
-- [ ] T6. Phase 02(이후) PLAN 초안과 Phase 그래프 — Done when: `docs/phases/README.md` 표가 `ai-stream.sh phases` 출력과 같고 Phase 02 PLAN이 존재 · Touches: `docs/phases/` · Owner: 미정
+- [ ] T6. Phase 02(이후) PLAN 초안과 Phase 그래프 — Done when: `docs/phases/README.md` 표가 `ai-stream.sh phases` 출력과 같고 Phase 02 PLAN이 존재 · Touches: `docs/phases/` · Owner: 미정 · Refs: none
 
 ## Relevant Specifications
 

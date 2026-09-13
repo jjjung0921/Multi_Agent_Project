@@ -33,6 +33,7 @@ case "$branch" in hotfix/*) say "  hotfix/* 브랜치 — 스트림 규칙 검�
 if [ -z "$id" ]; then
   if [ "$bootstrap" -eq 1 ] && [ "$mode" != "ci" ]; then say "  bootstrap 모드 — 스트림 없이 진행 (파생 파일 검사만)"; fail_derived=0
     bash scripts/ai-stream.sh phases --check >/dev/null 2>&1 || warn "docs/phases/README.md 표가 PLAN 머리와 다르다 → scripts/ai-stream.sh phases"
+    bash scripts/ai-stream.sh trace --check >/dev/null 2>&1 || warn "docs/phases/README.md 추적 표가 다르다 → scripts/ai-stream.sh trace"
     exit 0
   fi
   fail "브랜치 '$branch' 는 ws/* 가 아니다 (Rule 15) — scripts/ai-stream.sh open"; exit 1
@@ -172,6 +173,7 @@ chk_pr_title() {
 chk_derived() {
   bash scripts/ai-stream.sh phases --check >/dev/null 2>&1 && ok "docs/phases/README.md 표 = PLAN 머리" || fail "docs/phases/README.md 표가 PLAN 머리와 다르다 → scripts/ai-stream.sh phases"
   bash scripts/ai-stream.sh announce --check >/dev/null 2>&1 && ok "공지 색인 최신" || fail "공지 색인이 다르다 → scripts/ai-stream.sh announce"
+  bash scripts/ai-stream.sh trace --check >/dev/null 2>&1 && ok "docs/phases/README.md 추적 표 = PLAN Refs·스트림" || fail "추적 표가 PLAN Refs·스트림과 다르다 → scripts/ai-stream.sh trace"
   if grep -vq '^#' .github/CODEOWNERS 2>/dev/null; then
     bash scripts/ai-stream.sh codeowners --check >/dev/null 2>&1 && ok "CODEOWNERS = ARCHITECTURE Owner 열" || fail "CODEOWNERS 가 ARCHITECTURE Owner 열과 다르다 → scripts/ai-stream.sh codeowners"
   fi
@@ -190,6 +192,7 @@ case "$mode" in
   ready)
     chk_close_scope; chk_status; chk_checkpoint; chk_other_streams; chk_sync; chk_spec; chk_announcements; chk_caps; chk_secrets; chk_handoff
     bash scripts/ai-stream.sh phases --check >/dev/null 2>&1 || warn "docs/phases/README.md 표가 PLAN 머리와 다르다 → scripts/ai-stream.sh phases (CI 가 FAIL 시킨다)"
+    bash scripts/ai-stream.sh trace --check >/dev/null 2>&1 || warn "docs/phases/README.md 추적 표가 다르다 → scripts/ai-stream.sh trace (CI 가 FAIL 시킨다)"
     if [ "$kind" = "task" ]; then
       plan=$(ls -d docs/phases/"${task%%/*}"-*/PLAN.md 2>/dev/null | head -n1)
       [ -n "$plan" ] && { grep -qE "^- \[x\] ${task#*/}\. .*\(commit [0-9a-f]{7,}" "$plan" && ok "PLAN 의 ${task#*/} 에 완료 SHA 있음" || warn "PLAN 의 ${task#*/} 줄에 [x]·(commit <sha>, PR #n) 를 적는다"; }

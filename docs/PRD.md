@@ -2,13 +2,14 @@
 
 <!--
 제품 관점의 요구사항 문서. "무엇을, 왜"를 다루고 "어떻게(구현)"는 docs/ARCHITECTURE.md에 둔다.
-- 요구사항마다 ID를 붙여 Phase PLAN·테스트·ADR에서 참조한다 (FR-1, NFR-1 ...).
+- 요구사항마다 ID를 붙여 Phase PLAN의 Task 줄 `Refs:`·테스트·ADR에서 참조한다 (FR-1, NFR-1 ...). 어느 Task·스트림이 맡았는지는 여기 쓰지 않는다 — docs/phases/README.md의 추적 표가 PLAN에서 도출한다.
 - 요구사항이 바뀌면 이 문서를 먼저 고치고, 영향을 받는 Phase PLAN을 갱신한다.
 - Status: Draft → Approved. Approved 이후의 변경은 git 이력으로 추적한다.
 -->
 
 - Status: Draft
 - Last updated: <YYYY-MM-DD>
+- Trace: [docs/phases/README.md — Traceability](phases/README.md#traceability) (FR/NFR → Task → 스트림, 생성 표)
 
 ## Problem
 

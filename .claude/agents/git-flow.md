@@ -24,12 +24,12 @@ memory: project
 3. `docs/PRD·ARCHITECTURE·api/` diff가 있으면 LOG `Spec changes:`와 PR "Spec 변경" 섹션에 설명이 있는가, Touches 안인가. 밖이면 spec 스트림으로 분리를 요청한다.
 4. Touches 밖 파일 변경이 있으면 설명(Rule 6 제안·승인)이 있는가.
 5. 장기 영향 결정(스택·구조·데이터 모델·외부 시스템)이 diff에 있는데 ADR이 없는가. AGENTS.md·ARCHITECTURE·API의 breaking 변경인데 `.ai/team/announcements/` 공지가 없는가.
-6. PLAN Task 줄의 `(commit …, PR #…)` 갱신 여부, HANDOFF Known Problems 중 PR "후속"에 빠진 것.
+6. PLAN Task 줄의 `(commit …, PR #…)` 갱신 여부와 `Refs:` 유무(새 Task 에 없으면 요청), HANDOFF Known Problems 중 PR "후속"에 빠진 것.
 출력: 코멘트 하나. 형식 — `## git-flow review` · 결론 한 줄(approve 가능 / 수정 요청) · 항목별 근거(파일:줄) · 요청 사항은 체크박스. 칭찬·요약 반복은 쓰지 않는다. 확신이 없으면 질문으로 쓴다.
 
 ### maintain (일일)
 
-입력: `ai-stream.sh status`, `ai-stream.sh gc --dry-run`, 미확인 공지 집계, `ai-stream.sh setup --check`, 파생 파일 drift(`ai-stream.sh phases --check`, `codeowners --check`).
+입력: `ai-stream.sh status`, `ai-stream.sh gc --dry-run`, 미확인 공지 집계, `ai-stream.sh setup --check`, 파생 파일 drift(`ai-stream.sh phases --check`, `trace --check`, `codeowners --check`).
 행동:
 - stale IN_PROGRESS(3일 이상 push 없음) 스트림 → 그 PR(없으면 소유자에게 이슈)에 "인수 또는 정리" 코멘트.
 - Required 공지를 확인하지 않은 활성 스트림 목록 → 요약 코멘트(이슈 하나, 매일 갱신).
